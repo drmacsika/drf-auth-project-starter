@@ -157,9 +157,12 @@ CORS_ALLOWED_ORIGINS = [
 
 # dj_rest_auth
 REST_USE_JWT = True
-
 JWT_AUTH_COOKIE = 'JWT'
 JWT_AUTH_REFRESH_COOKIE = 'R-JWT'
+REST_AUTH_SERIALIZERS = {
+    'REGISTER_SERIALIZER': 'accounts.serializers.CustomRegisterSerializer',
+    'USER_DETAILS_SERIALIZER': 'accounts.serializers.CustomUserDetailsSerializer',
+}
 
 # All Auth
 AUTHENTICATION_BACKENDS = (

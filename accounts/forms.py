@@ -133,12 +133,12 @@ class UserAdminChangeForm(forms.ModelForm):
         name = self.cleaned_data["name"].title()
         return name
 
-    def clean_email(self):
-        if (User.objects.filter(email=self.cleaned_data.get("email").casefold()).exists()):
-            raise forms.ValidationError(
-                _("This email address is already in use."))
-        email = self.cleaned_data["email"].lower()
-        return email
+    # def clean_email(self):
+    #     if (User.objects.filter(email=self.cleaned_data.get("email").casefold()).exists()):
+    #         raise forms.ValidationError(
+    #             _("This email address is already in use."))
+    #     email = self.cleaned_data["email"].lower()
+    #     return email
 
     def save(self, commit=True):
         user = super().save(commit=False)

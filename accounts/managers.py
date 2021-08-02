@@ -25,14 +25,14 @@ class UserManager(BaseUserManager):
         fullname = name.split()
         if len(fullname) <= 1:
             raise ValidationError(
-                _('Kindly enter more than one name, please.'),
+                _('Kindly enter more than one name.'),
                 code='invalid',
                 params={'value': self},
             )
         for x in fullname:
             if len(x) < 2:
                 raise ValidationError(
-                    _('Please enter your name correctly.'),
+                    _('Kindly give us your full name.'),
                     code='invalid',
                     params={'value': self},
                 )
@@ -44,27 +44,27 @@ class UserManager(BaseUserManager):
         return user
 
     def create_user(self, name, email=None, password=None, **extra_fields):
-        extra_fields.setdefault('staff', False)
-        extra_fields.setdefault('admin', False)
+        extra_fields.setdefault('is_staff', False)
+        extra_fields.setdefault('is_superuser', False)
         return self._create_user(name, email, password, **extra_fields)
 
     def create_staff(self, name, email, password, **extra_fields):
-        extra_fields.setdefault('staff', True)
-        extra_fields.setdefault('admin', False)
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', False)
 
-        if extra_fields.get('staff') is not True:
-            raise ValueError('Staff must have staff=True.')
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Staff must have is_staff=True.')
 
         return self._create_user(name, email, password, **extra_fields)
 
     def create_superuser(self, name, email, password, **extra_fields):
-        extra_fields.setdefault('staff', True)
-        extra_fields.setdefault('admin', True)
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
 
-        if extra_fields.get('staff') is not True:
-            raise ValueError('Admin must have staff=True.')
-        if extra_fields.get('admin') is not True:
-            raise ValueError('Admin must have admin=True.')
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Admin must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Admin must have is_superuser=True.')
 
         return self._create_user(name, email, password, **extra_fields)
 
@@ -79,4 +79,3 @@ class UserManager(BaseUserManager):
 
     def get_last_name(self):
         return get_last_name(self.name)
-    

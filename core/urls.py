@@ -13,13 +13,6 @@ urlpatterns = [
 
     # rest_framework
     path('api/', include('rest_framework.urls')),
-
-    # dj-rest-auth
-    # path('api/auth/', include('dj_rest_auth.urls')),
-    path("api/auth/", include("accounts.urls")),
-    # path('api/auth/', include('dj_rest_auth.urls')),
-    # path('api/auth/signup/', include('dj_rest_auth.registration.urls')),
-
-    # Native
+    path("api/accounts/", include("accounts.urls")),
     path('admin/', admin.site.urls),
 ]

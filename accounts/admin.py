@@ -28,9 +28,9 @@ class UserAdmin(BaseUserAdmin):
         # (None, {'fields': ('password',)}), # This simply shows the hashed password field
         (_('Personal info'), {'fields': ('name', 'email',)}),
         (_('Permissions'), {
-            'fields': ('active', 'staff', 'admin', 'groups', 'user_permissions',)
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions',)
         }),
-        (_('Important dates'), {'fields': ('last_login', 'created',)}),
+        (_('Important dates'), {'fields': ('last_login', 'date_joined',)}),
     )
     # add_fieldsets is not a standard ModelAdmin attribute. UserAdmin
     # overrides get_fieldsets to use this attribute when creating a user.
@@ -40,9 +40,9 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('name', 'email', 'password1', 'password2')}
          ),
     )
-    list_display = ('id', 'email', 'name', 'active', 'staff')
+    list_display = ('id', 'email', 'name', 'is_active', 'is_staff')
     list_display_links = ['email']
-    list_filter = ('admin', 'staff', 'active', 'groups')
+    list_filter = ('is_superuser', 'is_staff', 'is_active', 'groups')
     search_fields = ('email', 'name')
     ordering = ('email',)
     list_per_page = 10
