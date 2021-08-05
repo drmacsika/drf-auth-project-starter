@@ -1,3 +1,5 @@
+from accounts.views import CustomPasswordResetConfirmView
+from dj_rest_auth.views import PasswordResetConfirmView
 from django.contrib import admin
 from django.urls import path
 from django.urls.conf import include, path
@@ -13,6 +15,13 @@ urlpatterns = [
 
     # rest_framework
     path('api/', include('rest_framework.urls')),
-    path("api/accounts/", include("accounts.urls")),
+
+    # The pasword reset path below can only work
+    # if added to the high level urls.py file
+    path(
+        'api/accounts/password/reset/<slug:uidb64>/<slug:token>/',
+        CustomPasswordResetConfirmView.as_view(), name='password_reset_confirm'
+    ),
+    path("", include("accounts.urls")),
     path('admin/', admin.site.urls),
 ]

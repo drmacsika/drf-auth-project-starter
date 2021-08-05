@@ -1,21 +1,24 @@
+import unicodedata
 from datetime import date
 
-from allauth.account.adapter import DefaultAccountAdapter, get_adapter
-from allauth.account.app_settings import (AUTHENTICATION_METHOD,
-                                          AuthenticationMethod)
-from allauth.account.forms import (EmailAwarePasswordResetTokenGenerator,
-                                   ResetPasswordForm, SignupForm)
-from allauth.account.utils import user_pk_to_url_str, user_username
-from allauth.utils import build_absolute_uri
+from allauth.account.forms import EmailAwarePasswordResetTokenGenerator
 from django import forms
-from django.contrib.auth import authenticate, get_user_model, login
+from django.contrib.auth import (authenticate, get_user_model,
+                                 password_validation)
 from django.contrib.auth.forms import (ReadOnlyPasswordHashField,
-                                       UserChangeForm, UserCreationForm)
+                                       UserCreationForm)
+from django.contrib.auth.hashers import (UNUSABLE_PASSWORD_PREFIX,
+                                         identify_hasher)
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
-from django.shortcuts import get_object_or_404
-from django.urls import reverse, reverse_lazy
-from django.utils.safestring import mark_safe
+from django.core.mail import EmailMultiAlternatives
+from django.template import loader
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.utils.text import capfirst
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
@@ -149,199 +152,65 @@ class UserAdminChangeForm(forms.ModelForm):
         return user
 
 
-# class MyCustomSignupForm(SignupForm):
+class CustomSetPasswordForm(forms.Form):
+    """
+    A form that lets a user change set their password without entering the old
+    password
+    """
+    error_messages = {
+        'password_mismatch': _("The two password fields didn't match."),
+    }
+    new_password1 = forms.CharField(
+        label=_("New password"),
+        widget=forms.PasswordInput,
+        strip=False,
+        help_text=password_validation.password_validators_help_text_html(),
+    )
+    new_password2 = forms.CharField(
+        label=_("New password confirmation"),
+        strip=False,
+        widget=forms.PasswordInput,
+    )
 
-#     name = forms.CharField(
-#         label=_("Full Name"),
-#         widget=forms.TextInput,
-#         strip=True,
-#         help_text=_(""),
-#     )
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
 
-#     password1 = forms.CharField(
-#         label=_("Password"),
-#         strip=True,
-#         widget=forms.PasswordInput,
-#         help_text=_(""),
-#         validators=[validate_password],
-#     )
+    def clean_new_password2(self):
+        password1 = self.cleaned_data.get('new_password1')
+        password2 = self.cleaned_data.get('new_password2')
+        if password1 and password2:
+            if password1 != password2:
+                raise forms.ValidationError(
+                    self.error_messages['password_mismatch'],
+                    code='password_mismatch',
+                )
+        password_validation.validate_password(password2, self.user)
+        return password2
 
-#     class Meta:
-#         model = User
-#         fields = ('name', 'email', 'password1')
-
-#     def save(self, request):
-
-#         # Ensure you call the parent class's save.
-#         # .save() returns a User object.
-#         user = super(MyCustomSignupForm, self).save(request)
-
-#         # Add your own processing here.
-
-#         # You must return the original result.
-#         return user
+    def save(self, commit=True):
+        password = self.cleaned_data["new_password1"]
+        self.user.set_password(password)
+        if commit:
+            self.user.save()
+        return self.user
 
 
-# class CustomResetPasswordForm(ResetPasswordForm):
-#     def save(self, request, **kwargs):
-#         current_site = get_current_site(request)
-#         email = self.cleaned_data["email"]
-#         token_generator = kwargs.get(
-#             "token_generator", default_token_generator)
+# class PasswordSetForm(SetPasswordForm):
 
-#         for user in self.users:
-#             temp_key = token_generator.make_token(user)
+#     field_order = ['new_password1', 'new_password2']
 
-#             # save it to the password reset model
-#             # password_reset = PasswordReset(user=user, temp_key=temp_key)
-#             # password_reset.save()
-
-#             # send the password reset email
-#             path = reverse_lazy(
-#                 "accounts:reset_password_from_key",
-#                 kwargs=dict(uidb36=user_pk_to_url_str(user), key=temp_key),
+#     def clean_old_password(self):
+#         """
+#         Validate that the old_password field is correct.
+#         """
+#         old_password = self.cleaned_data["old_password"]
+#         if not self.user.check_password(old_password):
+#             raise forms.ValidationError(
+#                 self.error_messages['password_incorrect'],
+#                 code='password_incorrect',
 #             )
-#             url = build_absolute_uri(request, path)
-
-#             context = {
-#                 "current_site": current_site,
-#                 "user": user,
-#                 "password_reset_url": url,
-#                 "request": request,
-#             }
-
-#             if AUTHENTICATION_METHOD != AuthenticationMethod.EMAIL:
-#                 context["username"] = user_username(user)
-#             get_adapter(request).send_mail(
-#                 "accounts/email/password_reset_key", email, context
-#             )
-#         return self.cleaned_data["email"]
-
-
-# from django.utils.encoding import force_bytes
-# from django.utils.http import urlsafe_base64_encode
-# from django.contrib.auth.tokens import default_token_generator
-# from django.contrib.sites.shortcuts import get_current_site
-# from django.core.mail import EmailMultiAlternatives
-# from django.template import loader
-# User = get_user_model()
-
-
-# class RegisterForm(forms.ModelForm):
-#     """A form for creating new users. Includes all the required
-#     fields, and no repeated password."""
-#     error_messages = {
-#         'password_mismatch': _("The two password fields didn't match."),
-#     }
-
-#     name = forms.CharField(
-#         label=_("Full Name"),
-#         widget=forms.TextInput,
-#         strip=True,
-#         help_text=_(""),
-#     )
-
-#     password1 = forms.CharField(
-#         label=_("Password"),
-#         strip=True,
-#         widget=forms.PasswordInput,
-#         help_text=_(""),
-#         validators=[UserAdminCreationForm.validate_password],
-#     )
-
-#     class Meta:
-#         model = User
-#         fields = ('name', 'email',)
-
-#     def save(self, commit=True):
-#         # Save the provided password in hashed format
-#         user = super(RegisterForm, self).save(commit=False)
-#         user.set_password(self.cleaned_data["password1"])
-#         user.email = user.email.lower().strip()
-#         user.name = user.name.title()
-#         user.active = False  # Send email confirmation via post save signals
-#         if commit:
-#             user.save()
-#         return user
-
-
-# class ReactivateEmailForm(forms.Form):
-#     email = forms.EmailField(max_length=254)
-
-#     def clean_email(self):
-#         email = self.cleaned_data.get('email')
-#         qs = EmailActivation.objects.email_exists(email)
-#         if not qs.exists():
-#             link1 = reverse("contact:contact_home")
-#             reconfirm_msg2 = "Kindly <a href='{resend_link}' class='text-info'>contact us to learn more</a>.".format(
-#                 resend_link=link1)
-#             msg3 = "This email hasn't been registered before or is already activated. " + reconfirm_msg2
-#             raise forms.ValidationError(_(mark_safe(msg3)), code='invalid')
-#         return email
-
-
-# class LoginForm(forms.Form):
-#     email = forms.EmailField()
-#     password = forms.CharField(widget=forms.PasswordInput)
-
-#     def __init__(self, request, *args, **kwargs):
-#         self.request = request
-#         super(LoginForm, self).__init__(*args, **kwargs)
-
-#     def clean(self):
-#         request = self.request
-#         data = self.cleaned_data
-#         email = data.get("email")
-#         password = data.get("password")
-#         user = authenticate(request, username=email, password=password)
-#         if user is None:
-#             raise forms.ValidationError("Incorrect email address or password!")
-#         qs = User.objects.filter(email=email)
-#         if qs.exists():
-#             not_active = qs.filter(active=False)
-#             if not_active.exists():
-#                 link = reverse("signup_reconfirm_email")
-#                 reconfirm_msg = "<a href='{resend_link}' class='text-secondary'>resend confirmation email</a>".format(resend_link=link)
-#                 confirm_email = EmailActivation.objects.filter(email=email)
-#                 is_confirmable = confirm_email.confirmable().exists()
-#                 if is_confirmable:
-#                     msg1 = "Your account is not yet confirmed. Kindly check your mail to confirm your account or you can " + reconfirm_msg.lower() + "."
-#                     raise forms.ValidationError(mark_safe(msg1))
-#                 confirmed_email_exists = EmailActivation.objects.email_exists(email).exists()
-#                 if confirmed_email_exists:
-#                     msg2 = "Your account is not yet confirmed. Kindly " + reconfirm_msg + " before you can login."
-#                     raise forms.ValidationError(_(mark_safe(msg2)), code='invalid')
-#                 if not is_confirmable or confirmed_email_exists:
-#                     link1 = reverse("contact:contact_home")
-#                     reconfirm_msg2 = "Kindly <a href='{resend_link}' class='text-secondary'>contact us for assistance</a>.".format(resend_link=link1)
-#                     msg3 = "Your account is inactive. " + reconfirm_msg2
-#                     raise forms.ValidationError(_(mark_safe(msg3)), code='invalid')
-#         else:
-#             link2 = reverse("signup")
-#             reconfirm_msg3 = '<a href="{resend_link}" class="text-secondary">join sikademy to login</a>.'.format(resend_link=link2)
-#             msg4 = "This email address is not registered yet. Kindly " + reconfirm_msg3
-#             raise forms.ValidationError(_(mark_safe(msg4)), code='invalid')
-#         login(request, user)
-#         self.user = user
-#         return data
-
-
-# class AccountForm(forms.ModelForm):
-#     name = forms.CharField(
-#         label=_("Full Name"),
-#         widget=forms.TextInput,
-#         strip=True,
-#         help_text=_(""),
-#     )
-#     email = forms.EmailField()
-
-#     class Meta:
-#         model = User
-#         fields = ('name', 'email',)
-
-#     def __init__(self, *args, **kwargs):
-#         super(AccountForm, self).__init__(*args, **kwargs)
-#         self.fields['email'].disabled = True
+#         return old_password
 
 
 # class ProfileForm(forms.ModelForm):

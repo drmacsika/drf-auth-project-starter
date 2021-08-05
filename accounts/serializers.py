@@ -1,15 +1,23 @@
-from django.contrib.auth import get_user_model
+from django.conf import settings
+from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpRequest
+from django.urls import exceptions as url_exceptions
 from django.urls.exceptions import NoReverseMatch
+from django.utils.encoding import force_str
+from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 from requests.exceptions import HTTPError
-from rest_framework import serializers
+from rest_framework import exceptions, serializers
+from rest_framework.exceptions import ValidationError
+from rest_framework.generics import GenericAPIView, RetrieveUpdateAPIView
 from rest_framework.reverse import reverse
 
 try:
     from allauth.account import app_settings as allauth_settings
     from allauth.account.adapter import get_adapter
+    from allauth.account.forms import AddEmailForm
     from allauth.account.utils import setup_user_email
     from allauth.socialaccount.helpers import complete_social_login
     from allauth.socialaccount.models import SocialAccount
@@ -20,6 +28,8 @@ except ImportError:
 
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from django.db import transaction
+
+from .forms import CustomSetPasswordForm
 
 User = get_user_model()
 
@@ -98,3 +108,40 @@ class CustomUserDetailsSerializer(serializers.ModelSerializer):
             'name',
         )
         read_only_fields = ('email',)
+
+
+class CustomPasswordSetSerializer(serializers.Serializer):
+    new_password1 = serializers.CharField(max_length=128)
+    new_password2 = serializers.CharField(max_length=128)
+
+    set_password_form_class = SetPasswordForm
+    set_password_form = None
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        self.request = self.context.get('request')
+        self.user = getattr(self.request, 'user', None)
+        if self.request.user.has_usable_password():
+            # return HttpResponseRedirect(reverse("account_change_password"))
+            change_password_link = "<a href=\"http://127.0.0.1:3000/change-password\""
+            err_msg = _(
+                f'You\'ve already set a password for this account. To change your password visit {change_password_link}')
+            raise serializers.ValidationError(err_msg)
+
+    def validate_old_password(self, value):
+        pass
+
+    def validate(self, attrs):
+        self.set_password_form = self.set_password_form_class(
+            user=self.user, data=attrs,
+        )
+        if not self.set_password_form.is_valid():
+            raise serializers.ValidationError(self.set_password_form.errors)
+        return attrs
+
+    def save(self):
+        self.set_password_form.save()
+        from django.contrib.auth import update_session_auth_hash
+        update_session_auth_hash(self.request, self.user)

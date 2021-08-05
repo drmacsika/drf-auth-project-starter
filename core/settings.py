@@ -63,7 +63,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -133,8 +133,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ###### Custom settings ######
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_HOST = 'your.email.host'
+# EMAIL_USE_TLS = True
+# EMAIL_PORT = 587
+# EMAIL_HOST_USER = 'your email host user'
+# EMAIL_HOST_PASSWORD = 'your email host password'
 SITE_ID = 1
 AUTH_USER_MODEL = 'accounts.CustomUser'
+# LOGIN_URL = 'http://127.0.0.1:3000'  # reverse_lazy('accounts:login')
+# LOGIN_REDIRECT_URL = 'home'
+# LOGOUT_URL = 'accounts:logout'
+# LOGOUT_REDIRECT_URL = 'home'
+# SIGNUP_REDIRECT_URL = 'accounts:email_verification_sent'
 
 
 REST_FRAMEWORK = {
@@ -163,6 +173,8 @@ REST_AUTH_SERIALIZERS = {
     'REGISTER_SERIALIZER': 'accounts.serializers.CustomRegisterSerializer',
     'USER_DETAILS_SERIALIZER': 'accounts.serializers.CustomUserDetailsSerializer',
 }
+OLD_PASSWORD_FIELD_ENABLED = True
+LOGOUT_ON_PASSWORD_CHANGE = False
 
 # All Auth
 AUTHENTICATION_BACKENDS = (
@@ -173,9 +185,10 @@ AUTHENTICATION_BACKENDS = (
     "allauth.account.auth_backends.AuthenticationBackend",
 )
 
-# ADAPTER = 'accounts.adapter.MyAccountAdapter'
-# ACCOUNT_ADAPTER = 'accounts.adapter.MyAccountAdapter'
+ADAPTER = 'accounts.adapter.MyAccountAdapter'
+ACCOUNT_ADAPTER = 'accounts.adapter.MyAccountAdapter'
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http"
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = None
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 1

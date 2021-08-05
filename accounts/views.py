@@ -15,7 +15,7 @@ from dj_rest_auth.registration.serializers import (SocialAccountSerializer,
                                                    VerifyEmailSerializer)
 from dj_rest_auth.registration.views import RegisterView
 from dj_rest_auth.utils import jwt_encode
-from dj_rest_auth.views import LoginView
+from dj_rest_auth.views import PasswordChangeView, PasswordResetConfirmView
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
@@ -28,12 +28,33 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import CustomRegisterSerializer
+from .serializers import CustomPasswordSetSerializer, CustomRegisterSerializer
 
 sensitive_post_parameters_m = method_decorator(
-    sensitive_post_parameters('password1'),
+    sensitive_post_parameters(
+        'password', 'old_password', 'new_password1', 'new_password2',
+    ),
 )
 
 
 class CustomRegisterView(RegisterView):
     serializer_class = CustomRegisterSerializer
+
+
+class CustomPasswordResetConfirmView(PasswordResetConfirmView):
+    email_template_name = 'accounts/registration/password_reset_email.html'
+
+
+class CustomPasswordSetView(GenericAPIView):
+    serializer_class = CustomPasswordSetSerializer
+    permission_classes = (IsAuthenticated,)
+
+    @sensitive_post_parameters_m
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'detail': _('New password has been saved.')})
