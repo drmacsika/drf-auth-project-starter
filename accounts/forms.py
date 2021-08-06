@@ -1,24 +1,12 @@
-import unicodedata
-from datetime import date
-
 from allauth.account.forms import EmailAwarePasswordResetTokenGenerator
+from allauth.account.models import EmailAddress
+from allauth.account.utils import filter_users_by_email
 from django import forms
-from django.contrib.auth import (authenticate, get_user_model,
-                                 password_validation)
+from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.forms import (ReadOnlyPasswordHashField,
                                        UserCreationForm)
-from django.contrib.auth.hashers import (UNUSABLE_PASSWORD_PREFIX,
-                                         identify_hasher)
 from django.contrib.auth.models import User
-from django.contrib.auth.tokens import default_token_generator
-from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMultiAlternatives
-from django.template import loader
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
-from django.utils.text import capfirst
-from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
@@ -54,6 +42,12 @@ def validate_fullname(self):
                 code='invalid',
                 params={'value': self},
             )
+
+
+class UserForm(forms.Form):
+    def __init__(self, user=None, *args, **kwargs):
+        self.user = user
+        super(UserForm, self).__init__(*args, **kwargs)
 
 
 class UserAdminCreationForm(UserCreationForm):
@@ -196,21 +190,25 @@ class CustomSetPasswordForm(forms.Form):
         return self.user
 
 
-# class PasswordSetForm(SetPasswordForm):
+class EmailConfirmationForm(UserForm):
 
-#     field_order = ['new_password1', 'new_password2']
+    email = forms.EmailField(
+        label=_("E-mail"),
+        required=True,
+        widget=forms.TextInput(
+            attrs={"type": "email", "placeholder": _("E-mail address")}
+        ),
+    )
 
-#     def clean_old_password(self):
-#         """
-#         Validate that the old_password field is correct.
-#         """
-#         old_password = self.cleaned_data["old_password"]
-#         if not self.user.check_password(old_password):
-#             raise forms.ValidationError(
-#                 self.error_messages['password_incorrect'],
-#                 code='password_incorrect',
-#             )
-#         return old_password
+    def clean_email(self):
+        value = self.cleaned_data["email"]
+        value = self.clean_email(value)
+        return value
+
+    def save(self, request):
+        return EmailAddress.objects.add_email(
+            request, self.user, self.cleaned_data["email"], confirm=True
+        )
 
 
 # class ProfileForm(forms.ModelForm):

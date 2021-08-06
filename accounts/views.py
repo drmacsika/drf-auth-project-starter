@@ -1,6 +1,7 @@
 from allauth.account import app_settings as allauth_settings
 from allauth.account.adapter import get_adapter
 from allauth.account.models import EmailAddress
+from allauth.account.signals import email_confirmed
 from allauth.account.utils import complete_signup, send_email_confirmation
 from allauth.account.views import ConfirmEmailView
 from allauth.socialaccount import signals
@@ -15,26 +16,38 @@ from dj_rest_auth.registration.serializers import (SocialAccountSerializer,
                                                    VerifyEmailSerializer)
 from dj_rest_auth.registration.views import RegisterView
 from dj_rest_auth.utils import jwt_encode
-from dj_rest_auth.views import PasswordChangeView, PasswordResetConfirmView
+from dj_rest_auth.views import (LoginView, PasswordChangeView,
+                                PasswordResetConfirmView)
 from django.conf import settings
+from django.contrib.auth import get_user_model, password_validation
+from django.dispatch import receiver
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.debug import sensitive_post_parameters
-from rest_framework import status
-from rest_framework.exceptions import (MethodNotAllowed, NotFound,
-                                       ValidationError)
+from rest_framework import generics, serializers, status
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.exceptions import (APIException, MethodNotAllowed,
+                                       NotFound, ValidationError)
 from rest_framework.generics import CreateAPIView, GenericAPIView, ListAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import CustomPasswordSetSerializer, CustomRegisterSerializer
+from .serializers import (CustomEmailConfirmationSerializer,
+                          CustomLoginSerializer, CustomPasswordSetSerializer,
+                          CustomRegisterSerializer)
+
+User = get_user_model()
 
 sensitive_post_parameters_m = method_decorator(
     sensitive_post_parameters(
         'password', 'old_password', 'new_password1', 'new_password2',
     ),
 )
+
+
+class CustomLoginView(LoginView):
+    serializer_class = CustomLoginSerializer
 
 
 class CustomRegisterView(RegisterView):
@@ -58,3 +71,73 @@ class CustomPasswordSetView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({'detail': _('New password has been saved.')})
+
+
+class CustomEmailConfirmationView(GenericAPIView):
+    permission_classes = (AllowAny,)
+    serializer_class = CustomEmailConfirmationSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            email = EmailAddress.objects.get(**serializer.validated_data)
+        except:
+            return Response({'email': _("Account does not exist")}, status=status.HTTP_400_BAD_REQUEST)
+
+        if email.verified:
+            return Response({'email': _("Account is already verified")}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(email=email)
+            send_email_confirmation(request, user=user)
+            return Response({'email': _('Email confirmation sent!')}, status=status.HTTP_200_OK)
+        except:
+            print(request.data['email'])
+            return Response({'email': _('Something went wrong while sending you an email.')}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# @receiver(email_confirmed)
+# def email_confirmed_(request, email_address, **kwargs):
+#     user = email_address.user
+#     user.email_verified = True
+
+#     user.save()
+
+
+# # request a new confirmation email
+# class CustomEmailConfirmation(APIView):
+#     permission_classes = [AllowAny]
+
+#     def post(self, request):
+#         if request.user.email_verified:
+#             return Response({'message': 'Your email is already verified'}, status=status.HTTP_201_CREATED)
+
+#         send_email_confirmation(request, request.user)
+#         return Response({'message': 'Email confirmation sent'}, status=status.HTTP_201_CREATED)
+
+
+# class CustomEmailConfirmationView(APIView):
+#     permission_classes = [AllowAny]
+#     serializer_class = CustomEmailConfirmationSerializer
+
+#     def post(self, request):
+#         try:
+#             user = User.objects.get(email=request.data['email'])
+#         except:
+#             if not request.data['email']:
+#                 return Response({'error': 'Please enter a valid email'}, status=status.HTTP_400_BAD_REQUEST)
+#             else:
+#                 return Response({'error': 'No account associated with this email. Kindly create an account to join us.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#         email_address = EmailAddress.objects.filter(
+#             user=user, verified=True).exists()
+
+#         if email_address:
+#             return Response({'error': 'This email is already verified'}, status=status.HTTP_400_BAD_REQUEST)
+#         else:
+#             try:
+#                 send_email_confirmation(request, user=user)
+#                 return Response({'success': 'Email confirmation sent'}, status=status.HTTP_201_CREATED)
+#             except APIException:
+#                 return Response({'error': 'This email does not exist, please create a new account'}, status=status.HTTP_403_FORBIDDEN)

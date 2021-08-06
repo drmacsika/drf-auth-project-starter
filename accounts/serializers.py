@@ -26,12 +26,61 @@ try:
 except ImportError:
     raise ImportError('allauth needs to be added to INSTALLED_APPS.')
 
+from allauth.account.models import EmailAddress
 from dj_rest_auth.registration.serializers import RegisterSerializer
+from dj_rest_auth.serializers import LoginSerializer
 from django.db import transaction
 
-from .forms import CustomSetPasswordForm
+from .forms import EmailConfirmationForm
 
 User = get_user_model()
+
+
+class CustomLoginSerializer(LoginSerializer):
+
+    def get_auth_user(self, username, email, password):
+        try:
+            return self.get_auth_user_using_allauth(username, email, password)
+        except url_exceptions.NoReverseMatch:
+            msg = _('The email or password you provided is incorrect.')
+            raise exceptions.ValidationError(msg)
+
+        # return self.get_auth_user_using_orm(username, email, password)
+
+    @staticmethod
+    def validate_auth_user_status(user):
+        if not user.is_active:
+            msg = _(
+                'This account is currently disabled. Please contact us for more info.')
+            raise exceptions.ValidationError(msg)
+
+    @staticmethod
+    def validate_email_verification_status(user):
+        email_address = user.emailaddress_set.get(email=user.email)
+        if not email_address.verified:
+            resend_link = "<a href=\"http://127.0.0.1:3000/resend-email-confirmation\">click here.</a>"
+            err_msg = (
+                f'This email address is not verified. To verify your email {resend_link}')
+            raise serializers.ValidationError(_(err_msg))
+
+    def validate(self, attrs):
+        username = attrs.get('username')
+        email = attrs.get('email')
+        password = attrs.get('password')
+        user = self.get_auth_user(username, email, password)
+
+        if not user:
+            msg = _('The email or password you provided is incorrect.')
+            raise exceptions.ValidationError(msg)
+
+        # Did we get back an active user?
+        self.validate_auth_user_status(user)
+
+        # If required, is the email verified?
+        self.validate_email_verification_status(user)
+
+        attrs['user'] = user
+        return attrs
 
 
 class CustomRegisterSerializer(RegisterSerializer):
@@ -60,9 +109,6 @@ class CustomRegisterSerializer(RegisterSerializer):
         }
 
     def validate(self, data):
-        # if data['password1'] != data['password1']:
-        #     raise serializers.ValidationError(
-        #         _("The two password fields didn't match."))
         fullname = data['name'].split()
         if len(fullname) <= 1:
             raise serializers.ValidationError(
@@ -72,14 +118,6 @@ class CustomRegisterSerializer(RegisterSerializer):
                 raise serializers.ValidationError(
                     _('Kindly give us your full name.'),)
         return data
-
-    # Define transaction.atomic to rollback the save operation in case of error
-    # @transaction.atomic
-    # def save(self, request):
-    #     user = super().save(request)
-    #     user.name = self.data.get('name')
-    #     user.save()
-    #     return user
 
     @transaction.atomic
     def save(self, request):
@@ -125,10 +163,10 @@ class CustomPasswordSetSerializer(serializers.Serializer):
         self.user = getattr(self.request, 'user', None)
         if self.request.user.has_usable_password():
             # return HttpResponseRedirect(reverse("account_change_password"))
-            change_password_link = "<a href=\"http://127.0.0.1:3000/change-password\""
-            err_msg = _(
-                f'You\'ve already set a password for this account. To change your password visit {change_password_link}')
-            raise serializers.ValidationError(err_msg)
+            change_password_link = "<a href=\"http://127.0.0.1:3000/change-password\">click here</a>"
+            err_msg = (
+                f'You\'ve already set a password for this account. To change your password {change_password_link}')
+            raise serializers.ValidationError(_(err_msg))
 
     def validate_old_password(self, value):
         pass
@@ -145,3 +183,62 @@ class CustomPasswordSetSerializer(serializers.Serializer):
         self.set_password_form.save()
         from django.contrib.auth import update_session_auth_hash
         update_session_auth_hash(self.request, self.user)
+
+
+class CustomUserDetailsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = (
+            'name',
+        )
+        read_only_fields = ('email',)
+
+
+class CustomEmailConfirmationSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    # def get_cleaned_data(self):
+    #     return {'email': self.validated_data.get('email'), }
+
+    # def validate(self, attrs):
+    #     self.email_confirmation_form = self.email_confirmation_form_class(
+    #         user=self.user, data=attrs,
+    #     )
+    #     if not self.email_confirmation_form.is_valid():
+    #         raise serializers.ValidationError(
+    #             self.email_confirmation_form.errors)
+    #     return attrs
+
+
+# class CustomEmailConfirmationSerializer(serializers.Serializer):
+#     email = serializers.EmailField(required=True)
+#     email_confirmation_form_class = EmailConfirmationForm
+#     email_confirmation_form = None
+
+#     def __init__(self, *args, **kwargs):
+
+#         super().__init__(*args, **kwargs)
+
+#         self.request = self.context.get('request')
+#         self.user = getattr(self.request, 'user', None)
+
+
+#     def get_cleaned_data(self):
+#         return {
+#             'email': self.validated_data.get('email', ''),
+#         }
+
+#     def validate(self, attrs):
+#         self.email_confirmation_form = self.email_confirmation_form_class(
+#             user=self.user, data=attrs,
+#         )
+#         if not self.email_confirmation_form.is_valid():
+#             raise serializers.ValidationError(
+#                 self.email_confirmation_form.errors)
+#         return attrs
+
+#     def save(self):
+#         self.email_confirmation_form.save()
+#         from django.contrib.auth import update_session_auth_hash
+#         update_session_auth_hash(self.request, self.user)
