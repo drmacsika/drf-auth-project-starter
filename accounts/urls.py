@@ -22,7 +22,7 @@ urlpatterns = [
          name='signup'),
     path('api/accounts/confirm-email/', VerifyEmailView.as_view(),
          name='email_verification_sent'),
-    path('api/accounts/resend-email-confirmation/',
+    path('api/accounts/resend-email/',
          CustomEmailConfirmationView.as_view(), name="resend_email"),
 
 ]
