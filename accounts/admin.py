@@ -4,7 +4,6 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
 from .forms import UserAdminChangeForm, UserAdminCreationForm
-from .models import CustomUser  # Profile, EmailActivation
 
 User = get_user_model()
 
@@ -48,40 +47,5 @@ class UserAdmin(BaseUserAdmin):
     list_per_page = 10
     filter_horizontal = ('groups', 'user_permissions',)
 
-    # list_select_related = ('profile',)
-
-    # list_select_related = ('profile',)
-
-    # def get_location(self, instance):
-    #     return instance.profile.location
-    # get_location.short_description = 'Location'
-
-    # def get_username(self, instance):
-    #     return instance.profile.username
-    # get_username.short_description = 'Username'
-
-    # def get_inline_instances(self, request, obj=None):
-    #     if not obj:
-    #         return list()
-    #     return super(UserAdmin, self).get_inline_instances(request, obj)
-
 
 admin.site.register(User, UserAdmin)
-
-
-# from django.contrib import admin
-# from django.contrib.auth import get_user_model
-# from django.contrib.auth.admin import UserAdmin
-
-# from .forms import CustomUserChangeForm, CustomUserCreationForm
-# from .models import CustomUser
-
-
-# class CustomUserAdmin(UserAdmin):
-#     add_form = CustomUserCreationForm
-#     form = CustomUserChangeForm
-#     model = CustomUser
-#     list_display = ['email', 'name', ]
-
-
-# admin.site.register(CustomUser, CustomUserAdmin)

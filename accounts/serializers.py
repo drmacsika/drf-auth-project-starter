@@ -1,37 +1,20 @@
-from django.conf import settings
-from django.contrib.auth import authenticate, get_user_model
-from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import SetPasswordForm
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.http import HttpRequest
 from django.urls import exceptions as url_exceptions
-from django.urls.exceptions import NoReverseMatch
-from django.utils.encoding import force_str
-from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
-from requests.exceptions import HTTPError
 from rest_framework import exceptions, serializers
-from rest_framework.exceptions import ValidationError
-from rest_framework.generics import GenericAPIView, RetrieveUpdateAPIView
-from rest_framework.reverse import reverse
 
 try:
     from allauth.account import app_settings as allauth_settings
     from allauth.account.adapter import get_adapter
-    from allauth.account.forms import AddEmailForm
     from allauth.account.utils import setup_user_email
-    from allauth.socialaccount.helpers import complete_social_login
-    from allauth.socialaccount.models import SocialAccount
-    from allauth.socialaccount.providers.base import AuthProcess
-    from allauth.utils import email_address_exists, get_username_max_length
 except ImportError:
     raise ImportError('allauth needs to be added to INSTALLED_APPS.')
 
-from allauth.account.models import EmailAddress
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from dj_rest_auth.serializers import LoginSerializer
 from django.db import transaction
-
-from .forms import EmailConfirmationForm
 
 User = get_user_model()
 

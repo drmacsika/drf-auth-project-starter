@@ -1,5 +1,4 @@
 from accounts.views import CustomPasswordResetConfirmView
-from dj_rest_auth.views import PasswordResetConfirmView
 from django.contrib import admin
 from django.urls import path
 from django.urls.conf import include, path

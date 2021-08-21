@@ -1,6 +1,5 @@
 from allauth.account.forms import EmailAwarePasswordResetTokenGenerator
 from allauth.account.models import EmailAddress
-from allauth.account.utils import filter_users_by_email
 from django import forms
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.forms import (ReadOnlyPasswordHashField,
@@ -130,12 +129,7 @@ class UserAdminChangeForm(forms.ModelForm):
         name = self.cleaned_data["name"].title()
         return name
 
-    # def clean_email(self):
-    #     if (User.objects.filter(email=self.cleaned_data.get("email").casefold()).exists()):
-    #         raise forms.ValidationError(
-    #             _("This email address is already in use."))
-    #     email = self.cleaned_data["email"].lower()
-    #     return email
+
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -210,13 +204,3 @@ class EmailConfirmationForm(UserForm):
             request, self.user, self.cleaned_data["email"], confirm=True
         )
 
-
-# class ProfileForm(forms.ModelForm):
-#     birth_date = forms.DateField(widget=forms.SelectDateWidget(years=range(date.today().year - 4, date.today().year - 100, -1), empty_label=("Choose Year", "Choose Month", "Choose Day")))
-
-#     class Meta:
-#         model = Profile
-#         fields = ('profile_image', 'username', 'bio', 'location', 'occupation', 'birth_date', 'gender', 'language',
-#                   'occupation', 'name_of_organization', 'job_position', 'website', 'linkedin_url', 'github_profile',
-#                   'twitter_profile', 'instagram_profile', 'youtube_channel_url'
-#                   )

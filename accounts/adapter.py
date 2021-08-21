@@ -2,9 +2,9 @@ from allauth.account.adapter import DefaultAccountAdapter
 from allauth.utils import build_absolute_uri
 from django.conf import settings
 from django.contrib.sites.shortcuts import get_current_site
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.shortcuts import resolve_url
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse_lazy
 
 
 class MyAccountAdapter(DefaultAccountAdapter):
