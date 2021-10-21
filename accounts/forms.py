@@ -1,11 +1,17 @@
+from allauth.account.adapter import get_adapter
 from allauth.account.forms import EmailAwarePasswordResetTokenGenerator
 from allauth.account.models import EmailAddress
+from allauth.account.utils import user_pk_to_url_str
+from allauth.utils import build_absolute_uri
+from dj_rest_auth.forms import AllAuthPasswordResetForm
 from django import forms
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.forms import (ReadOnlyPasswordHashField,
                                        UserCreationForm)
 from django.contrib.auth.models import User
+from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 User = get_user_model()
@@ -204,3 +210,35 @@ class EmailConfirmationForm(UserForm):
             request, self.user, self.cleaned_data["email"], confirm=True
         )
 
+      
+class CustomPasswordResetForm(AllAuthPasswordResetForm):
+    """
+    We inherit the Original class of the allauth package to specify the 
+    custom reset password template by overriding the save method since 
+    there's no adapter to specify the default email template.
+    """
+    def save(self, request, **kwargs):
+        current_site = get_current_site(request)
+        email = self.cleaned_data['email']
+        token_generator = kwargs.get('token_generator', default_token_generator)
+
+        for user in self.users:
+
+            temp_key = token_generator.make_token(user)
+            
+            path = reverse(
+                'password_reset_confirm',
+                args=[user_pk_to_url_str(user), temp_key],
+            )
+            url = build_absolute_uri(request, path)
+
+            context = {
+                'current_site': current_site,
+                'user': user,
+                'password_reset_url': url,
+                'request': request,
+            }
+            get_adapter(request).send_mail(
+                'accounts/email/password_reset_key', email, context
+            )
+        return self.cleaned_data['email']

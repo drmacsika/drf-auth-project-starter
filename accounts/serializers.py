@@ -13,8 +13,10 @@ except ImportError:
     raise ImportError('allauth needs to be added to INSTALLED_APPS.')
 
 from dj_rest_auth.registration.serializers import RegisterSerializer
-from dj_rest_auth.serializers import LoginSerializer
+from dj_rest_auth.serializers import LoginSerializer, PasswordResetSerializer
 from django.db import transaction
+
+from .forms import CustomPasswordResetForm
 
 User = get_user_model()
 
@@ -28,7 +30,6 @@ class CustomLoginSerializer(LoginSerializer):
             msg = _('The email or password you provided is incorrect.')
             raise exceptions.ValidationError(msg)
 
-        # return self.get_auth_user_using_orm(username, email, password)
 
     @staticmethod
     def validate_auth_user_status(user):
@@ -180,3 +181,13 @@ class CustomUserDetailsSerializer(serializers.ModelSerializer):
 
 class CustomEmailConfirmationSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
+    
+    
+class CustomPasswordResetSerializer(PasswordResetSerializer):
+    """
+    This inherits from dj_rest_auth to solely for custom email
+    for password reset
+    """
+    @property
+    def password_reset_form_class(self):
+        return CustomPasswordResetForm

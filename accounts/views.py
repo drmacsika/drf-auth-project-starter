@@ -1,7 +1,8 @@
 from allauth.account.models import EmailAddress
 from allauth.account.utils import send_email_confirmation
 from dj_rest_auth.registration.views import RegisterView
-from dj_rest_auth.views import LoginView, PasswordResetConfirmView
+from dj_rest_auth.views import (LoginView, PasswordResetConfirmView,
+                                PasswordResetView)
 from django.contrib.auth import get_user_model
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
@@ -11,9 +12,11 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .serializers import (CustomEmailConfirmationSerializer,
-                          CustomLoginSerializer, CustomPasswordSetSerializer,
-                          CustomRegisterSerializer)
+from accounts.serializers import (CustomEmailConfirmationSerializer,
+                                  CustomLoginSerializer,
+                                  CustomPasswordResetSerializer,
+                                  CustomPasswordSetSerializer,
+                                  CustomRegisterSerializer)
 
 User = get_user_model()
 
@@ -34,7 +37,10 @@ class CustomRegisterView(RegisterView):
 
 class CustomPasswordResetConfirmView(PasswordResetConfirmView):
     email_template_name = 'accounts/registration/password_reset_email.html'
-
+    
+    
+class CustomPasswordResetView(PasswordResetView):
+    serializer_class = CustomPasswordResetSerializer
 
 class CustomPasswordSetView(GenericAPIView):
     serializer_class = CustomPasswordSetSerializer
