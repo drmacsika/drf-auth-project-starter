@@ -2,10 +2,6 @@
 
 Production-ready Project starter for RESTFul API Backend Using Django
 
-############----- Github Default README.md -----##########
-
-https://img.shields.io/github/last-commit/drmacsika/Cooking-Recipe-Guide-with-GraphQL-Django?style=plastic
-
 # JWT-Authentication-with-ReactJS-Redux-and-Django-DRF
 
 Foobar is a Python library for dealing with word pluralization.
