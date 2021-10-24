@@ -1,10 +1,6 @@
-# DRF-Project-Starter-with-Authentication
+# DRF Project Starter with Authentication
 
 Production-ready Project starter for RESTFul API Backend Using Django
-
-# JWT-Authentication-with-ReactJS-Redux-and-Django-DRF
-
-Foobar is a Python library for dealing with word pluralization.
 
 ## Features
 
